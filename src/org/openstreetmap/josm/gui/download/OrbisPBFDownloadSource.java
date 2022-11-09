@@ -29,8 +29,9 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.nio.file.Path;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.*;
 
@@ -51,6 +52,7 @@ public class OrbisPBFDownloadSource implements DownloadSource<List<IDownloadSour
      */
     static final List<IDownloadSourceType> DOWNLOAD_SOURCES = new ArrayList<>();
     private static File pbfFile;
+
     static {
         // Order is important (determines button order, and what gets zoomed to)
         DOWNLOAD_SOURCES.add(new OrbisPBFDataDownloadType());
@@ -70,14 +72,19 @@ public class OrbisPBFDownloadSource implements DownloadSource<List<IDownloadSour
         Envelope envelope = new Envelope(bbox.getMinLon(), bbox.getMaxLon(), bbox.getMinLat(), bbox.getMaxLat());
         IndexedPbfRepository indexedPbfRepository = new IndexedPbfRepository(pbfFile.toPath(), pbfFile.toPath().getParent().resolve("index.proto.bin"));
         try {
-            FileOutputStream fileOutputStream = new FileOutputStream("output.osm.pbf");
-            fileOutputStream.write(indexedPbfRepository.readData(envelope).readAllBytes());
+            InputStream inputStream = indexedPbfRepository.readData(envelope);
+            File targetFile = new File("output.osm.pbf");
+            Files.copy(
+                    inputStream,
+                    targetFile.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
-        File file = new File("output.osm.pbf");
-        OpenFileTask task = new OpenFileTask(List.of(file), null);
+        ArrayList<File> files = new ArrayList<>();
+        files.add(new File("output.osm.pbf"));
+        OpenFileTask task = new OpenFileTask(files, null);
         MainApplication.worker.submit(task);
     }
 
